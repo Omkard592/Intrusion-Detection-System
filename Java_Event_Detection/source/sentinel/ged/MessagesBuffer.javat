@@ -1,0 +1,54 @@
+package sentinel.ged;
+
+import java.util.*;
+import sentinel.led.*;
+
+/**
+ * Title:        Your Product Name
+ * Description:  Your description
+ * Copyright:    Copyright (c) 1999
+ * Company:      ITLAB, Unversity of Texas, Arlington
+ * @author weera tanpisuth
+ * @version
+ */
+
+public class MessagesBuffer {
+
+  public MessagesBuffer() {
+    buffer = new LinkedList();
+  }
+
+
+  private LinkedList buffer;
+
+
+  synchronized public NotificationMessage get() {
+ //   if (ledThreadDebug)
+ //     System.out.println("\n" + Thread.currentThread().getName() + " : calling get");
+
+    //  make sure that there is a notify object in the queue
+    while(buffer.size() == 0)
+			//wait if there is no notify object in the queue
+		  try{
+			 wait();
+			}
+		  catch(InterruptedException ie) {
+        System.out.println("InterruptedException caught");
+        ie.printStackTrace();
+    }
+    NotificationMessage tempNotObj;
+    // get the notify object from the linked list
+    tempNotObj = (NotificationMessage)  buffer.removeFirst();
+    return tempNotObj;
+  }
+
+  /** This method puts a notify object from the notify buffer.
+   */
+  /*synchronized public void put(NotificationMessage notifyObj) {
+
+    buffer.add(NotificationMessage);
+    // when size equals 1, it means LED is waitinf for notify
+		if (buffer.size() == 1)
+      notifyAll();
+ }*/
+}

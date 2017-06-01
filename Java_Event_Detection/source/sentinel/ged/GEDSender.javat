@@ -1,0 +1,157 @@
+
+//Title:        Sentinel Event Detection
+//Version:
+//Copyright:    Copyright (c) 1999
+//Author:       Weera Tanpisuth
+//Company:      ITLAB University of Texas, Arlington
+//Description:  Global Event Dectection
+package sentinel.ged;
+
+import sentinel.comm.*;
+
+import javax.naming.*;
+import javax.jms.*;
+//import sentinel.utilities.*;
+import sentinel.led.*;
+import java.util.*;
+
+
+/**
+ * This class
+ */
+
+public class GEDSender extends Sender {
+
+  /**
+  *  Constructor
+  */
+
+  public GEDSender() {
+    super();
+    try {
+       System.out.println("Initialize GEDSender");
+
+	    /*
+       * Create the initial context.  JNDI requires that two properties
+	     * be set to get the Context:
+	     *
+	     *		java.naming.factory.initial
+	     * 		java.naming.provider.url
+	     *
+	     * These properties are set in the runnit script and passed to
+	     * the VM when this application was started.
+	     */
+      Context ctx = new InitialContext();
+
+      // Lookup the QueueConnectionFactory
+      queueConnectionFactory = (QueueConnectionFactory)ctx.lookup(Constant.GED_QUE_CONN_FACTORY_BN);
+
+
+
+      // close the context when we're done
+      ctx.close();
+	  }
+    catch(NameNotFoundException e) {
+	    System.out.print("The application could not locate the JMS");
+	    System.out.println(" administered objects ");
+	    System.out.println("in the file system service provider.");
+      System.out.println("Please execute the runjmqconfig script first.");
+	    System.exit(1);
+	  }
+    catch(Exception e) {
+	    System.out.println("Exception: " + e.getMessage());
+	    e.printStackTrace();
+	  }
+  }
+
+
+  /**
+  *  This method
+  */
+/*
+  public void send(String queNm, SentinelMessage sentinelMesg){
+   // Create the connection
+
+    System.out.println("\n\nIn GEDSender::send");
+
+    try {
+
+      Context ctx = new InitialContext();
+
+      // Lookup the QueueConnectionFactory
+
+      System.out.println("Send the message through "+queNm+" gueue.");
+      queue = (Queue)ctx.lookup(queNm);
+
+      // close the context when we're done
+      ctx.close();
+	    // create QueueConnection
+	    queueConnection = queueConnectionFactory.createQueueConnection();
+    }catch(NameNotFoundException e) {
+      System.out.print("The application could not locate the JMS");
+	  System.out.println(" administered objects ");
+	  System.out.println("in the file system service provider.");
+      System.out.println("Please execute the runjmqconfig script first.");
+	  System.exit(1);
+    }catch (JMSException e) {
+	  System.out.println("ERROR : The router is not running on the specified host");
+	  System.out.println("Please check your router status and try to run");
+	  System.exit(1);
+    }catch(Exception e) {
+	  System.out.println("Exception: " + e.getMessage());
+	  e.printStackTrace();
+    }
+
+    // start QueueConnection and create QueueSession
+
+  	try {
+	    queueSession = queueConnection.createQueueSession(false,QueueSession.AUTO_ACKNOWLEDGE);
+    }catch (JMSException e) {
+	    System.out.println("JMSException: " + e.getMessage());
+	    e.printStackTrace();
+    }catch(Exception e) {
+	    System.out.println("Exception: " + e.getMessage());
+	    e.printStackTrace();
+	  }
+
+    try {
+      queueSender = queueSession.createSender(queue);
+      queueConnection.start();
+
+      queueSender = queueSession.createSender(queue);
+      queueConnection.start();
+
+      ObjectMessage objMsg = queueSession.createObjectMessage();
+      if(sentinelMesg instanceof NotificationMessage){
+
+      objMsg.setObject((NotificationMessage)sentinelMesg);
+      }else if
+      (sentinelMesg instanceof DetectionRequestMessage){
+      objMsg.setObject((DetectionRequestMessage)sentinelMesg);
+      }
+
+     // objMsg.setObject (sentinelMesg);
+
+      // send the message thourgh the channel
+      System.out.println("JMQ performs sending the message");
+      queueSender.send(objMsg);
+
+
+
+      queueSender.close();
+      queueSession.close();
+      queueConnection.close();
+	  }
+    catch (JMSException e) {
+	    System.out.println("JMSException: " + e.getMessage());
+	    e.printStackTrace();
+	  }
+    catch(Exception e) {
+	    System.out.println("Exception: " + e);
+	    e.printStackTrace();
+	  }
+    //  System.exit(0);
+
+
+  }*/
+}

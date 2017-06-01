@@ -1,0 +1,14 @@
+/**
+* Basic steps for initial set up before running the demo
+* 1) To update the setup, please update in this file after the word "Begin"
+* 2) Please set up the year that you run the program. YEAR = 2000 or YEAR = 2001
+* 3) To periodically show track status, set SHOW_TRACK_EVERY_MINS = 0  (for rule 4)
+* 4) To set up the time for rule 5, set  NO_CHANGE_IN_LOCATION_FOR_X_MINS   = 0 hrs 0 min 5 sec
+* 5) To set up the time for rule 11, set AFTER_TRACK_ENTER_X_MINS = 0 hrs 0 min 5 sec
+*/
+
+Begin
+YEAR = 2000
+SHOW_TRACK_EVERY_X_MINS = 0 hrs 0 min 10 sec
+NO_CHANGE_IN_LOCATION_FOR_X_MINS = 0 hrs 0 min 20 sec
+AFTER_TRACK_ENTER_X_MINS = 0 hrs 0 min 5 sec

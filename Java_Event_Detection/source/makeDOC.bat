@@ -1,0 +1,1 @@
+javadoc -d ..\javadocs -sourcepath . sentinel.comm sentinel.led sentinel.ged

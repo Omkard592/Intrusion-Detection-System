@@ -1,0 +1,729 @@
+package MAKEFITS;
+
+import java.util.Vector;
+import java.awt.*;
+import java.awt.event.*;
+import java.io.*;
+import Sentinel.*;
+import java.util.*;
+
+public class TrackMonitor {
+
+  static String startingTime = Constant.START_TIME ;
+  static String year = Constant.YEAR;
+
+  static Time startDemoTime = new Time(startingTime)  ;
+  static String formatTime = startingTime;
+
+
+  static String timeString = "0 hrs " + Constant.SHOW_TRACK_EVERY_MINS +" min "+Constant.SHOW_TRACK_EVERY_SECS+" sec";
+
+  // Track Display GUI
+
+  static Frame f;
+  static Graph a;
+
+  // static public EventHandle pEventStart;
+
+  static public EventHandle periodicEvent;
+  static public EventHandle pEventStart;
+  static public EventHandle pEventEnd;
+  static boolean debug = DebugHelper.isDebugFlagTrue("debug");
+
+  static public Vector tracksObject = new Vector();
+
+  static int elementsPerLine = 9;
+
+  // write a small test routine that counts the number of
+  // tokens per line.  If the number counted equals
+  // the number that is stored in elementsPerLine
+  // than report it otherwise report an error.
+
+  static  public Hashtable  trackNumberTrackObject = new Hashtable();
+
+  public TrackMonitor(){}
+
+  public static void main(String[] args){
+    TrackMonitor m = new TrackMonitor();     // dummy instance
+
+    //   Track Graph Panel Instantiation
+    int xLong = 600;
+    int yLat = 600;
+    f = new Frame("LOCATION MAP");
+    f.setSize(xLong, yLat);
+    f.show();
+    a = Track.graph;
+    a.setSize(xLong, yLat);
+
+
+    f.add("Center", a);
+    f.setLocation(425,0);
+    a.init();
+
+    //    a.setDMZZone();
+    a.validate();
+    a.start();
+
+    a.panel.setTrackHistory();
+
+    //    a.addNode("T005", 200,200, "-");
+    //    a.setWarning("T005");
+
+    
+    try{Thread t = new Thread(); t.sleep(4000);}catch(Exception e){};
+
+    a.unsetWarning("T005");
+
+
+
+    if((args.length ==2) && args[0].equals("-getLines")){
+
+      //if(true){
+    }
+    else{
+      System.out.println("USAGE: java DataFeed -getLines <sFilename>");
+      return;
+    }
+
+    ECAAgent myAgent = ECAAgent.initializeECAAgent();
+
+    // Create a primitive event that is a registered name. This registered name acts as the signature
+    // for the event.
+    // This event is not associated with any method invocation. It is explicitly raised in the application.
+    // The registered name used in this definition is "void startMethod()". This name is chosen for consistency
+    // with the signatures used for method events.
+
+    
+    // ECA Rule 4
+    
+    pEventStart = myAgent.createPrimitiveEvent("pEventStart","MAKEFITS.TrackMonitor",EventModifier.BEGIN,"void startMethod()");
+    // Create another primitive event that is a registered name. The registered name is "void endMethod()"
+
+   pEventEnd = myAgent.createPrimitiveEvent("pEventEnd","MAKEFITS.TrackMonitor",EventModifier.BEGIN,"void endMethod()");
+
+
+    /** Event specifiaction and rule defination of Rule_4
+     */
+
+    EventHandle showTrackStatusEveryMinEvent = myAgent.createCompositeEvent(EventType.PERIODIC,
+    "showTrackStatusEveryYMinutes",
+    pEventStart,timeString,
+    pEventEnd);
+
+    myAgent.createRule("showStatusRule",showTrackStatusEveryMinEvent,"MAKEFITS.TrackMonitor.C_trueCond",
+    "MAKEFITS.TrackMonitor.A_showAllTracks");
+
+    // Start showing tracks' status every Y minutes
+    EventHandle[] pStart = ECAAgent.getEventHandles("pEventStart");
+    ECAAgent.raiseBeginEvent(pStart,m);
+
+    Vector vEvents = new Vector();
+    //  vEvents = getLines("");
+    vEvents = TrackMonitor.getLines(args[1]);
+    showLines(vEvents);
+    getTokens(vEvents);
+
+
+    Vector setupData = new Vector();
+    setupData = TrackMonitor.getLines(Track/setup.txt]);
+    setup(setupData);
+
+
+
+    // Ending the application
+    DataInputStream reader = new DataInputStream(System.in);
+    int ch = '0';
+    try {
+      ch = reader.read();
+    }
+  catch(IOException ie) {	ie.printStackTrace();}
+
+
+    EventHandle[] pEnd = ECAAgent.getEventHandles("pEventEnd");
+    ECAAgent.raiseBeginEvent(pEnd,m);
+    pEnd = ECAAgent.getEventHandles("pEndTwo");
+    ECAAgent.raiseBeginEvent(pEnd,m);
+
+
+
+    a.addNode("T005", 200,200, "-");
+    a.setWarning("T005");
+
+
+  try{Thread t = new Thread(); t.sleep(4000);}catch(Exception e){};
+
+    a.unsetWarning("T005");
+
+    System.exit(0);
+    return;
+  }
+
+  /**
+   *  Condition and Action for Rule14
+   */
+
+  public boolean C_trueCond(ListOfParameterLists parameterLists) {
+    System.out.println("Condition Rule4: TRUE");
+    return true;
+  }
+
+
+  public void A_showAllTracks(ListOfParameterLists parameterLists) {
+    if(!tracksObject.isEmpty()){
+      // enumerate all tracks in the system
+      Track tempT;
+      int i = 0;
+      System.out.println("\n\nAction_Rule 4: Show all the tracks' status");
+
+      for(i=0 ; i < (tracksObject.size()) ;i++){
+        if(tracksObject.elementAt(i)!= null){
+          tempT = (Track) tracksObject.elementAt (i);
+          Track.analystLogger.log(" ");
+          Track.analystLogger.log(Constant.SHOW_TRACK_EVERY_MINS + " minutes"+Constant.SHOW_TRACK_EVERY_SECS  +" seconds since last check on "+tempT.getTrackNumber ());
+
+
+
+
+          System.out.println(tempT.toString());
+          // Future Plan for Rule 4
+          // Put update GUI code here
+        }
+      }
+    }
+    else{
+      System.out.println("no track in the system");
+    }
+  }
+
+  public static void getTokens(Vector vEvents){String dataType = null; // POS or CTC
+
+
+    String textLine = null;
+        String nextTextLine = null;
+              String[] nextTextLineAttri;
+    StringTokenizer st = null;
+    String className = null;
+    Time currentTime = null;
+    long now = 0;
+    String timeString = null;
+    long nextEventTime = 0;
+    Time nextTime = null;
+    String trackNumber = null ;
+    Track newTrack = null;
+    Time reportT = null;
+
+    // Since there is track number in POS line, after reading CTC we need
+    // to keep track of track number so that when we read POS line we can
+    // refer to the right track
+
+    Track currentTrack = null ;
+
+    // You can assume that the demo begin at any point by setting at beginning of this prgram.
+    int recordNumber = 1;
+
+    Time virtualCurrentTime = startDemoTime;
+    for(int jj = 0; jj < vEvents.size(); jj++)
+    {
+
+      textLine = (String) vEvents.elementAt(jj);
+
+      if(textLine.length()!= 0){
+      String[] attri = parseInput(textLine);
+
+      System.out.println("----------- RECORD "+ (recordNumber++) +" -------------------------");
+
+      if(attri[0].equals ("CTC")){
+        System.out.println("CTC");
+
+        nextTextLine = (String) vEvents.elementAt(jj+1);
+        // If there is a empty line between the records
+        if(nextTextLine.length () == 0)
+          nextTextLine = (String) vEvents.elementAt(jj+2);
+
+        nextTextLineAttri = parseInput(nextTextLine);
+
+        String dd = nextTextLineAttri[1].substring (0,2);
+        String hh = nextTextLineAttri[1].substring (2,4);
+        String mm = nextTextLineAttri[1].substring (4,6); // minute
+
+        // for debugging purpose
+    //    String tmp =  nextTextLineAttri;[1].charAt(6);
+        char checkSum;
+        String sec;
+//        if(tmp.equals("Z") || tmp.equals("z")){
+        if(nextTextLineAttri[1].charAt(6) =='z' || nextTextLineAttri[1].charAt(6) =='Z'){
+          sec = "00";
+          checkSum = nextTextLineAttri[1].charAt (7);
+        }
+        else{
+          sec = nextTextLineAttri[1].substring (6,8);
+          checkSum = nextTextLineAttri[1].charAt (9);
+        }
+
+
+        String mon = nextTextLineAttri[2]; // month
+        String mo = monValue(mon);  // return integer value of month
+
+
+        //      String formatTime = hh+":"+mm+":"+"00"+"/"+"mo"+"/"+dd+"/"+year;
+        formatTime = hh+":"+mm+":"+sec+"/"+mo+"/"+dd+"/"+year;
+
+
+        System.out.println("Time stamp is "+formatTime);
+        // get time
+        reportT = new Time(formatTime);
+        long pause = reportT.getMillis() - virtualCurrentTime.getMillis();
+        System.out.println("The event will occur after " + pause/1000 + " seconds.");
+        sleep(pause);
+        virtualCurrentTime = reportT;
+
+
+
+
+
+      }
+      else{
+
+        //  attri[1] format DDHHMMZC
+
+        String dd = attri[1].substring (0,2);
+        String hh = attri[1].substring (2,4);
+        String mm = attri[1].substring (4,6); // minute
+
+        // for debugging purpose
+    //    String tmp =  attri[1].charAt(6);
+        char checkSum;
+        String sec;
+//        if(tmp.equals("Z") || tmp.equals("z")){
+        if(attri[1].charAt(6) =='z' || attri[1].charAt(6) =='Z'){
+          sec = "00";
+          checkSum = attri[1].charAt (7);
+        }
+        else{
+          sec = attri[1].substring (6,8);
+          checkSum = attri[1].charAt (9);
+        }
+
+
+        String mon = attri[2]; // month
+        String mo = monValue(mon);  // return integer value of month
+
+
+        //      String formatTime = hh+":"+mm+":"+"00"+"/"+"mo"+"/"+dd+"/"+year;
+        formatTime = hh+":"+mm+":"+sec+"/"+mo+"/"+dd+"/"+year;
+
+
+        System.out.println("Time stamp is "+formatTime);
+        // get time
+        reportT = new Time(formatTime);
+        long pause = reportT.getMillis() - virtualCurrentTime.getMillis();
+        System.out.println("The event will occur after " + pause/1000 + " seconds.");
+        sleep(pause);
+
+        System.out.println("POS");
+        System.out.println(dd+"day "+hh+ " " + mm +" "+ checkSum);
+        System.out.println(formatTime);
+
+
+        virtualCurrentTime = reportT;
+      }
+      dataType = attri[0];
+      
+      try {
+        if(dataType.equals("CTC"))
+        {
+          trackNumber = attri[1]; // track number
+
+          //          className = st.nextToken();   // class name
+          a.addNode(trackNumber,0,0,"+");
+          // Future Plan
+          // In case there are more attribute
+          // Check whether the nextToken is "" or not
+          // If yes, ignore it
+          // If no, set track attribute
+          // If the track data already existed
+
+          // RJY
+          currentTrack = (Track)trackNumberTrackObject.get(trackNumber);
+          //          if(trackNumberTrackObject.get(trackNumber) != null)  {}
+          // Future Plan
+          // Update the new data in CTC line in the existing track
+          //  formatTime
+        }
+        // otherwise, create new track instance
+        if(currentTrack == null)
+        //     else
+        {
+          // instantiate the new track object
+          System.out.println("Create new track");
+          newTrack = new Track(trackNumber);
+          // RJY
+          currentTrack = newTrack;
+
+          // binding the events and rules for each instance
+
+                   
+          // ECA Rule 5
+          newTrack.createReportLocationEvent();
+          newTrack.createNotReportLocationInXMinEvent ();          
+          newTrack.createNotReportInXMinRule () ;
+          
+          // ECA Rule 6
+
+
+          newTrack.createNotUpdtBetwT1T2Event();
+          newTrack.createNotUpdtBetwT1T2Rule();
+
+          // ECA Rule 7 & 12
+          newTrack.createInZoneEvent() ;
+          newTrack.createOutOfZoneEvent();
+          newTrack.createInZoneOrOutOfZoneRule();
+          newTrack.createTrackEnterEvent()   ;
+          newTrack.createTrackLeaveEvent() ;
+          newTrack.createEnterZoneRule() ;
+          newTrack.createLeaveZoneRule();
+          
+          
+          // ECA Rule 11
+          newTrack.createAfterTrackEnterXMinEvent()  ;
+          newTrack.createAfterTrackEnterXMinRule() ;
+
+               
+          
+
+          newTrack.beginCountDown(); // start monitoring the update
+          // add the track into the list and hashtable
+          // so that you can refer it later on
+          tracksObject.addElement(newTrack);
+          trackNumberTrackObject.put(trackNumber,newTrack);
+          // add a graphics node to graph
+          // a.addNode(newTrack.getTrackNumber(),(int)newTrack.getLongitudeValue(), (int)newTrack.getLongitudeValue(), "+" );
+        }
+        if(dataType.equals("POS")){
+          
+          String latRaw = attri[3]; //latitude raw data
+          String lonRaw = attri[4]; //longitude raw data
+
+          
+          Latitude tLatitude = new Latitude(Integer.parseInt(latRaw.substring(0,2)),Integer.parseInt(latRaw.substring(2,4)),(float)0,latRaw.substring(4,5));
+          Longitude tLongitude = new Longitude(Integer.parseInt(lonRaw.substring(0,3)),Integer.parseInt(lonRaw.substring(3,5)),(float)0,lonRaw.substring(5,6));
+          System.out.println("UPDATE location"+latRaw+lonRaw);
+
+
+          currentTrack.setReportTime (reportT);
+          currentTrack.setLatitudeLongitude (tLatitude,tLongitude);
+          a.changeLocation(currentTrack.getTrackNumber(), (int)currentTrack.getLatitudeValue(), (int)currentTrack.getLongitudeValue());
+        }        
+      }
+      catch (NumberFormatException pe) {
+        System.out.println("ERROR");
+        // ignore this exception since we use - to represent null data.
+      }
+
+    }
+    }
+
+    System.out.println("\nTYPE and key to END");
+    DataInputStream reader = new DataInputStream(System.in);
+    int ch = '0';
+    try {
+      ch = reader.read();
+    }
+    catch(IOException ie) {
+      ie.printStackTrace();
+    }
+
+    System.out.println("\n*** END of LED application ***\n");System.exit(0);
+  }
+
+
+    public static void setup(Vector setupData){
+
+
+      String textLine;
+      for(int jj = 0; jj < vEvents.size(); jj++){
+
+        textLine = (String) vEvents.elementAt(jj);
+
+        if(textLine.length()!= 0){
+      String[] attri = parseInput(textLine);
+
+      System.out.println("----------- RECORD "+ (recordNumber++) +" -------------------------");
+
+      if(attri[0].equals ("CTC")){
+        System.out.println("CTC");
+
+        nextTextLine = (String) vEvents.elementAt(jj+1);
+        // If there is a empty line between the records
+        if(nextTextLine.length () == 0)
+          nextTextLine = (String) vEvents.elementAt(jj+2);
+
+        nextTextLineAttri = parseInput(nextTextLine);
+
+        String dd = nextTextLineAttri[1].substring (0,2);
+        String hh = nextTextLineAttri[1].substring (2,4);
+        String mm = nextTextLineAttri[1].substring (4,6); // minute
+
+        // for debugging purpose
+    //    String tmp =  nextTextLineAttri;[1].charAt(6);
+        char checkSum;
+        String sec;
+//        if(tmp.equals("Z") || tmp.equals("z")){
+        if(nextTextLineAttri[1].charAt(6) =='z' || nextTextLineAttri[1].charAt(6) =='Z'){
+          sec = "00";
+          checkSum = nextTextLineAttri[1].charAt (7);
+        }
+        else{
+          sec = nextTextLineAttri[1].substring (6,8);
+          checkSum = nextTextLineAttri[1].charAt (9);
+        }
+
+
+        String mon = nextTextLineAttri[2]; // month
+        String mo = monValue(mon);  // return integer value of month
+
+
+        //      String formatTime = hh+":"+mm+":"+"00"+"/"+"mo"+"/"+dd+"/"+year;
+        formatTime = hh+":"+mm+":"+sec+"/"+mo+"/"+dd+"/"+year;
+
+
+        System.out.println("Time stamp is "+formatTime);
+        // get time
+        reportT = new Time(formatTime);
+        long pause = reportT.getMillis() - virtualCurrentTime.getMillis();
+        System.out.println("The event will occur after " + pause/1000 + " seconds.");
+        sleep(pause);
+        virtualCurrentTime = reportT;
+
+
+
+
+
+      }
+  }
+
+
+
+
+  public static void showLinesAsArray(String[] sLines){
+    String sNextLine;
+    for (int jj=0;jj<sLines.length;jj++){
+      sNextLine = sLines[jj];
+      System.out.println("sLines[" + jj + "] = " + sNextLine);
+    }
+  }
+
+
+  public static boolean writeLines(Vector vEvents, String fileName){
+    boolean bSuccess = true;
+
+    // open printwriter
+    PrintWriter pw;
+    try{
+      pw = new PrintWriter(new FileWriter(fileName));
+    }
+    catch(Exception exc){
+      System.err.println("OpenError: DataFeed: writeLines()-- error opening file "+fileName+" -- "+exc);
+      return false;
+    }
+    // write vector
+    try{
+      for(int jj = 0; jj < vEvents.size(); jj++){
+        pw.println((String)vEvents.elementAt(jj));
+      }
+    }
+    catch(Exception exc){
+      System.err.println("Write Error: DataFeed: writeLines()-- error writing to file "+fileName+" -- "+exc);
+    bSuccess = false;}
+    // close file
+  try { pw.close();}
+    catch(Exception exc){
+      System.err.println("Close Error: DataFeed: writeLines()-- error writing to file "+fileName+" -- "+exc);
+      bSuccess = false;
+    }
+    return(bSuccess);
+  }
+
+
+  public static void showLines(Vector vEvents){
+    String sNextLine;
+    for (int jj=0;jj<vEvents.size();jj++){
+      sNextLine = (String) vEvents.elementAt(jj);
+      System.out.println("vEvents[" + jj + "] = " + sNextLine);
+    }
+  }
+
+
+  public static void showLinesGui(String fileName){
+    // set up gui
+    Frame guiFrame = new Frame();
+    guiFrame.setLayout(new BorderLayout());
+    Panel guiPanel = new Panel(new BorderLayout());
+    TextArea guiTA = new TextArea();
+    guiFrame.setTitle("Bob's GUI");
+    guiFrame.add(guiPanel, BorderLayout.CENTER);
+    guiPanel.add(guiTA, BorderLayout.CENTER);
+    // guiTA.appendText("This is a test");
+    // get text to be displayed
+
+    Vector linesVector = getLines(fileName);
+    for(int jj = 0; jj < linesVector.size();jj++){
+      System.out.println((String)linesVector.elementAt(jj));
+      guiTA.appendText((String)linesVector.elementAt(jj));
+    }
+    guiFrame.setBounds(100, 100, 200, 200);
+    // Display frame
+    guiFrame.show();
+  }
+
+  public static String[] getLinesAsArray(String sFilename){
+    Vector vEvents = getLines(sFilename);
+    if(vEvents == null)
+    return null;
+
+    String[] sLines = new String[vEvents.size()];
+
+    for(int ii = 0; ii < vEvents.size(); ii++){
+      sLines[ii] = (String)vEvents.elementAt(ii);
+    }
+    return sLines;
+  }
+
+  public static Vector getLines(String sFilename){
+    Vector vEvents = new Vector();
+    BufferedReader br;
+    String sNextLine;
+    // OPEN THE FILE
+  try { br = new BufferedReader(new FileReader(sFilename));}
+    // try { br = new BufferedReader(new FileReader("MAKEFITS/TrackData.txt"));}
+
+    catch(IOException ioe){
+      System.err.println("OPEN ERROR: DataFeed:getLines() -- error opening file = " + sFilename + " -- " + ioe);
+      return(null);
+    }
+
+    // READ IN THE LINES
+    try{  sNextLine = br.readLine();
+      while(sNextLine != null){
+        vEvents.addElement(sNextLine);
+        sNextLine = br.readLine();
+      }
+    }
+    catch(Exception exc){
+      System.err.println("READ ERROR: DataFeed:getLines() -- error reading file = " + sFilename + " -- " + exc);     vEvents = null;
+    }
+
+    // CLOSE THE FILE
+  try {br.close();}
+    catch(IOException ioe){
+      System.err.println("CLOSE ERROR: DataFeed:getLines() -- error opening file = " + sFilename + " -- " + ioe);
+    }
+
+    // RETURN THE VECTOR
+  return(vEvents);}
+
+  static public void sleep(long millis){
+
+  try { Thread.sleep(millis);  }
+    catch (InterruptedException e) {
+      e.printStackTrace();
+      System.out.println("\nInterruptedExeception caught in sleep");
+    }
+  }
+
+
+  // added by wt
+  // rational : To parse the input data according to the format
+
+  /**
+   * @param inputLne  A line of input data e.g.  the command line arguments
+   *                  POS/010000Z6/JAN/3300N6/12033W9  or
+   *                  CTC/T7001/UNEQUATED-T7002///UNK//////00///20/20/2001/NCT758493000
+   * @return arrayOfAttributes  attributes of CTC or POS
+   */
+
+  public static String[] parseInput(String inputLne){
+
+    String inputLine = inputLne;
+
+    String CTCAttri[] = new String[20];
+    String POSAttri[] = new String[17];
+    int attriIndex = 0;
+    String inputType = ""; // CTC or POS
+
+
+    if((inputLine.substring(0,3)).equals("CTC")){
+      inputType = "CTC";
+    }
+    else if((inputLine.substring(0,3)).equals("POS")){
+      inputType = "POS";
+    }
+    int i = 0;
+    for(int j = 0 ; j < inputLine.length(); j++){
+      if(inputLine.charAt(j) == '/' &&  (inputLine.charAt(j-1) != '/')){
+        String tmp;
+        if(attriIndex  != 0)
+        tmp = inputLine.substring(i+1,j);
+        else
+        tmp = inputLine.substring(i,j);
+
+
+        i = j;
+        if(inputType.equals("CTC"))
+        CTCAttri[attriIndex] = tmp;
+        else
+        POSAttri[attriIndex] = tmp;
+
+        attriIndex++;
+      }
+      if(inputLine.charAt(j) == '/' &&  (inputLine.charAt(j-1) == '/')){
+        i=j;
+      }
+    }
+    String last = "";
+    if((inputLine.charAt (inputLine.length()-1)) != '/'){
+      last = inputLine.substring(i+1);
+      if(inputType.equals("CTC"))
+      CTCAttri[attriIndex] = last;
+      else
+      POSAttri[attriIndex] = last;
+    }
+    if(inputType.equals("CTC"))
+    return CTCAttri;
+    else
+    return POSAttri;
+  }
+
+
+  public static String monValue(String mo){
+    if(mo.equals ("JAN"))
+    mo = "01";
+    else if(mo.equals ("FEB"))
+    mo = "02";
+    else if(mo.equals ("MAR"))
+    mo = "03";
+    else if(mo.equals ("APR"))
+    mo = "04";
+    else if(mo.equals ("MAY"))
+    mo = "05";
+    else if(mo.equals ("JUN"))
+    mo = "06";
+    else if(mo.equals ("JUL"))
+    mo = "07";
+    else if(mo.equals ("AUG"))
+    mo = "08";
+    else if(mo.equals ("SEP"))
+    mo = "09";
+    else if(mo.equals ("OCT"))
+    mo = "10";
+    else if(mo.equals ("NOV"))
+    mo = "11";
+    else if (mo.equals ("DEC"))
+    mo = "12";
+
+    return mo;
+  }
+}
+
+
+

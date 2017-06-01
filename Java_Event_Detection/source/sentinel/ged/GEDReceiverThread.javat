@@ -1,0 +1,38 @@
+
+//Title:        Sentinel Event Detection
+//Version:
+//Copyright:    Copyright (c) 1999
+//Author:       Weera Tanpisuth
+//Company:      ITLAB University of Texas, Arlington
+//Description:  Global Event Dectection
+package sentinel.ged;
+
+
+public class GEDReceiverThread implements Runnable {
+
+  private GEDInterface gedIntf;
+
+  /**
+  * Constructor
+  */
+
+  public GEDReceiverThread(){}
+
+  /**
+  * Constructor
+  */
+
+  public GEDReceiverThread(GEDInterface gedIntf) {
+    this.gedIntf = gedIntf;
+  }
+
+  /**
+  * This method
+  */
+
+  public void run(){
+    GEDReceiver gedRec = new GEDReceiver(gedIntf);
+   // gedRec.close();
+   // for(;;){}
+  }
+}

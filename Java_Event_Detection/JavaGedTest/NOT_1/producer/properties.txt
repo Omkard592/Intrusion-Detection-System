@@ -1,0 +1,9 @@
+eventDetectionDebug = false
+ledThreadDebug = false
+ruleSchedulerDebug = false
+timerDebug = false
+mainDebug = false
+Debug = false
+contextPropagationDebug = false
+globalNotificationDebug = false
+glbDetctnReqstDebug = false

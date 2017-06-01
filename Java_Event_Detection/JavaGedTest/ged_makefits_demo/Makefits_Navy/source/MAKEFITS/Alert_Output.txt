@@ -1,0 +1,17 @@
+ 
+10 seconds since last check on T7000
+ 
+Alert for T7001
+T7001 is entering the AOI
+ 
+10 seconds since last check on T7001
+ 
+Alert for T7001
+5 seconds after T7001 entered the AOI
+ 
+10 seconds since last check on T7000
+ 
+Alert for T7000
+No change in location of T7000 for 20 seconds form 15:56:15 5/6/2001
+ 
+10 seconds since last check on US001

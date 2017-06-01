@@ -1,0 +1,6 @@
+eventDetectionDebug = false
+ledThreadDebug = false
+ruleSchedulerDebug = false
+timerDebug = false
+mainDebug = false
+debug = false

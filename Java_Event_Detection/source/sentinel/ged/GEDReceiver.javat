@@ -1,0 +1,270 @@
+
+//Title:        Sentinel Event Detection
+//Version:
+//Copyright:    Copyright (c) 1999
+//Author:       Weera Tanpisuth
+//Company:      ITLAB University of Texas, Arlington
+//Description:  Global Event Dectection
+package sentinel.ged;
+
+//import sentinel.utilities.*;
+import sentinel.led.*;
+
+import javax.naming.*;
+import javax.jms.*;
+import java.io.File;
+import java.io.*;
+
+import java.util.*;
+
+/**
+ * This class
+ */
+
+public class GEDReceiver extends Receiver implements MessageListener{
+
+  static boolean contextPropagationDebug = DebuggingHelper.isDebugFlagTrue("contextPropagationDebug");
+  static boolean globalNotificationDebug = DebuggingHelper.isDebugFlagTrue("globalNotificationDebug");
+  static boolean glbDetctnReqstDebug = DebuggingHelper.isDebugFlagTrue("glbDetctnReqstDebug");
+
+
+  private GEDInterface gedIntf;
+
+  /**
+   *  The default constructor
+   */
+
+  public GEDReceiver(){}
+
+  /**
+   *  This constructor
+   */
+
+  public GEDReceiver(GEDInterface gedIntf) {
+
+    this.gedIntf = gedIntf;
+    System.out.println("Initialize GEDReceiver.....");
+
+
+
+    try {
+
+      /*
+       * Create the initial context.  JNDI requires that two properties
+       * be set to get the Context:
+       *
+       *          java.naming.factory.initial
+       *          java.naming.provider.url
+       *
+       * These properties are set in the runnit script and passed to
+       * the VM when this application was started.
+       */
+
+
+      Context ctx = new InitialContext();
+
+      // lookup QueueConnectionFactory
+      queueConnectionFactory = (QueueConnectionFactory)ctx.lookup(Constant.GED_QUE_CONN_FACTORY_BN);
+
+      // lookup Queue
+      queue = (Queue)ctx.lookup(GEDConstant.GED_PORT);
+
+      // close the context when we're done
+      ctx.close();
+
+    }
+    catch(NameNotFoundException e) {
+      System.out.print(" The application could not locate the JMS");
+      System.out.println(" administered objects ");
+      System.out.println(" in the file system service provider.");
+      System.out.println(" Please check and execute the runjmqconfig script first.");
+      System.exit(1);
+    }
+    catch(Exception e) {
+      System.out.println("Exception: " + e.getMessage());
+      e.printStackTrace();
+    }
+    try {
+      // create QueueConnection
+      queueConnection = queueConnectionFactory.createQueueConnection();
+    }
+    catch (JMSException e) {
+      System.out.println("Please check your router status");
+      System.out.println("Please make sure that the connection factory is set properly");
+      System.exit(-1);
+    }
+    catch(Exception e) {
+      System.out.println("Exception: " + e.getMessage());
+      e.printStackTrace();
+    }
+
+
+
+    try {
+
+      // create queue session
+      queueSession =  queueConnection.createQueueSession(false,QueueSession.AUTO_ACKNOWLEDGE);
+
+    }
+    catch (JMSException e) {
+      System.out.println("JMSException: " + e.getMessage());
+      e.printStackTrace();
+    }
+    catch(Exception e) {
+      System.out.println("Exception: " + e.getMessage());
+      e.printStackTrace();
+    }
+
+
+    subscribeMsg();
+
+    System.out.println("Ready to receive the notification request ");
+    System.out.println("Ready to receive the global notification event\n\n");
+  }
+
+
+  /**
+   *  This method
+   */
+
+  private void subscribeMsg() {
+    try {
+      queueReceiver = queueSession.createReceiver(queue);
+      queueReceiver.setMessageListener (this);
+      queueConnection.start();
+    }
+    catch (JMSException e) {
+      System.out.println("JMSException: " + e.getMessage());
+      e.printStackTrace();
+    }
+    catch (Exception e) {
+      System.out.println("Exception: " + e.getMessage());
+      e.printStackTrace();
+    }
+
+  }
+
+
+  /**
+  * This method
+  */
+
+  public void onMessage(Message mesg) {
+    if(globalNotificationDebug || contextPropagationDebug)
+      System.out.println("\nGEDReceiver::onMessage");
+
+    NotificationMessage notifMesg = null;
+    DetectionRequestMessage detReqstMesg = null;
+    ObjectMessage  objMesg = (ObjectMessage)mesg;
+
+    try {
+      if(objMesg.getObject () instanceof NotificationMessage){
+        notifMesg = (NotificationMessage) objMesg.getObject ();
+        onNotificationMessage(notifMesg);
+      }
+      else if (objMesg.getObject () instanceof DetectionRequestMessage){
+        objMesg = (ObjectMessage)mesg;
+        detReqstMesg = (DetectionRequestMessage) objMesg.getObject ();
+        onDetctnReqstMessage(detReqstMesg);
+      }
+      else
+       System.out.println("ERROR in casting back the mesg");
+    }
+    catch (JMSException e) {
+      System.out.println("JMSException: " + e.getMessage());
+      e.printStackTrace();
+    }catch (Exception e) {
+      System.out.println("Exception: " + e.getMessage());
+      e.printStackTrace();
+    }
+  }
+
+  private void onNotificationMessage(NotificationMessage notifMesg){
+    if(contextPropagationDebug){
+      System.out.println("\nReceive the notificaiton message\n");
+      System.out.println("Notifying this event : "+notifMesg.getEvntNm()+notifMesg.getAppNm ()+notifMesg.getMachNm ());
+//      System.out.println("Notifying this event : "+notifMesg.getEvntNm()+notifMesg.getAppID());
+    }
+
+    Vector glbNodeManagerList = GlobalNodeManager.getGlbNdMngrList();
+    for(int i = 0 ; i < glbNodeManagerList.size () ; ++i){
+      GlobalNodeManager  gNdMngr = (GlobalNodeManager) glbNodeManagerList.elementAt(i);
+      Event eV =   (Event) gNdMngr.getGlbEvntNd(notifMesg.getEvntNm()+notifMesg.getAppNm ()+notifMesg.getMachNm ());
+//            Event eV =   (Event) gNdMngr.getGlbEvntNd(notifMesg.getEvntNm()+notifMesg.getAppID());
+      GlobalEvent gV = null;
+      if(eV instanceof GlobalEvent){
+        gV = (GlobalEvent) eV;
+      }
+      GECAAgent gAgent =  gNdMngr.getAssocAgent();
+      gAgent.notifyGlobalNode (gV,notifMesg);
+    }
+  }
+
+  private void onDetctnReqstMessage(DetectionRequestMessage detReqstMesg ){
+    if(glbDetctnReqstDebug){
+      System.out.println("\n\nGEDReceiver::onDetctnReqstMessage");
+    }
+    if(contextPropagationDebug){
+      System.out.println("GEDRec receives the detection request message");
+      System.out.print("Request for this event detection :");
+      System.out.print(detReqstMesg.getEvntNm()+detReqstMesg.getAppNm ()+detReqstMesg.getMachNm ());
+ //     System.out.print(detReqstMesg.getEvntNm()+detReqstMesg.getAppID());
+      if(detReqstMesg.getContext() == ParamContext.RECENT.getId())
+        System.out.println(" in the RECENT context");
+      else if(detReqstMesg.getContext() == ParamContext.CONTINUOUS.getId())
+        System.out.println(" in the CONTINUOUS context");
+      else if(detReqstMesg.getContext() == ParamContext.CHRONICLE.getId())
+        System.out.println(" in the CHRONICLE context");
+      else if(detReqstMesg.getContext() == ParamContext.CUMULATIVE.getId())
+        System.out.println(" in the CUMULATIVE context");
+    }
+
+    int context = detReqstMesg.getContext();
+
+    Vector glbNodeManagerList = GlobalNodeManager.getGlbNdMngrList();
+
+    /* Searching for the global event node or the composite event on server.
+     * Then set the context recursively, and propagate the requst to the producer
+     */
+
+    for(int i = 0 ; i < glbNodeManagerList.size () ; ++i){
+      GlobalNodeManager gNdMngr = (GlobalNodeManager) glbNodeManagerList.elementAt(i);
+      Event eV = (Event) gNdMngr.getGlbEvntNd(detReqstMesg.getEvntNm()+detReqstMesg.getAppNm ()+detReqstMesg.getMachNm ());
+//      Event eV = (Event) gNdMngr.getGlbEvntNd(detReqstMesg.getEvntNm()+detReqstMesg.getAppID());
+
+      if(eV instanceof GlobalEvent){
+        GlobalEvent gV;
+        gV = (GlobalEvent) eV;
+        gV.setSendBackFlag (true);
+        gV.setContextRecursive(context,detReqstMesg);
+        if(contextPropagationDebug)
+          System.out.println("Set the send back flag in global event : "+gV.getEventName());
+      }else if (eV instanceof Composite){
+        System.out.println("Request the composite event detection");
+        And cV;
+        cV = (And) eV;
+        cV.setSendBackFlag (true);
+        cV.setContextRecursive(context,detReqstMesg);
+        if(contextPropagationDebug)
+          System.out.println("Set the send back flag in composite :"+cV.getEventName());
+      }
+    }
+  }
+
+  public void close() {
+    try {
+      queueReceiver.setMessageListener (null);
+      System.out.println("Closing Consumer queue session");
+      queueSession.close();
+    }
+    catch(Exception e) {
+      System.out.println("Exception, could not close Consumer queue session" +
+      e.getMessage());
+      e.printStackTrace();
+    }
+  }
+}
+
+
+
+

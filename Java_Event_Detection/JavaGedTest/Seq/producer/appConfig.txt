@@ -1,0 +1,14 @@
+//
+//SCOPE could be set to LOCAL for stand-alone application, GLOBAL for distributed application
+//
+//GED_URL can be set as 129.107.12.242 or bangkok
+//
+//VMC_URL is a virtual machine name. Name can be arbitrary.
+//
+
+SCOPE GLOBAL
+GED_URL 129.107.12.241
+APP_NAME producer
+VMC_URL newdelhi
+APP_ID producer_newdelhi
+PORT GEDQueBN

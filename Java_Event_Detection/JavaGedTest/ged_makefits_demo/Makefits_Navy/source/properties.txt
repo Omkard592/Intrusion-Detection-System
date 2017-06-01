@@ -1,0 +1,12 @@
+eventDetectionDebug = false
+ledThreadDebug = false
+ruleSchedulerDebug = false
+timerDebug = false
+mainDebug = false
+debug = false
+
+evntReqstDebug = false
+glbEvntReqstDebug = false
+glbEvntNotifDebug = false
+evntNotifDebug = false
+evntCreatnDebug = false
